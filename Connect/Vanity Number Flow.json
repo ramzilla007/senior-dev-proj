@@ -1,0 +1,217 @@
+{
+  "Version": "2019-10-30",
+  "StartAction": "6763de61-b584-4574-8aa1-1236eee8f5a6",
+  "Metadata": {
+    "entryPointPosition": {
+      "x": 40,
+      "y": 40
+    },
+    "ActionMetadata": {
+      "6763de61-b584-4574-8aa1-1236eee8f5a6": {
+        "position": {
+          "x": 240.8,
+          "y": 129.6
+        }
+      },
+      "25b478a8-16b7-4ed0-9fbb-5bc7f190033c": {
+        "position": {
+          "x": 848,
+          "y": 608.8
+        }
+      },
+      "c600f4c2-4646-48c3-822d-92ef2bb0bda8": {
+        "position": {
+          "x": 561.6,
+          "y": 88.8
+        },
+        "conditionMetadata": [
+          {
+            "id": "cd492dbb-3143-4468-afe3-43120ba4d834",
+            "value": "1"
+          },
+          {
+            "id": "467cef64-00b4-408c-a290-08325be40167",
+            "value": "2"
+          }
+        ]
+      },
+      "1c664967-da98-4af8-bc40-33d93972b408": {
+        "position": {
+          "x": 1485.6,
+          "y": 170.4
+        }
+      },
+      "Vanity Number": {
+        "position": {
+          "x": 896,
+          "y": 35.2
+        },
+        "isFriendlyName": true,
+        "parameters": {
+          "LambdaFunctionARN": {
+            "displayName": "SeniorDevProjStack-VanityLambdaAA33F3FA-k5vE0JWMrb0j"
+          }
+        },
+        "dynamicMetadata": {}
+      },
+      "2a257a72-0c1d-4cb6-b81c-483c6403ba58": {
+        "position": {
+          "x": 1114.4,
+          "y": 410.4
+        }
+      },
+      "Lambda Success": {
+        "position": {
+          "x": 1185.6,
+          "y": 36
+        },
+        "isFriendlyName": true
+      }
+    },
+    "Annotations": [],
+    "name": "Vanity Number Flow",
+    "description": "This flow calls a lambda function to",
+    "type": "contactFlow",
+    "status": "SAVED",
+    "hash": {}
+  },
+  "Actions": [
+    {
+      "Parameters": {
+        "Text": "Welcome to our Amazing Vanity number generator."
+      },
+      "Identifier": "6763de61-b584-4574-8aa1-1236eee8f5a6",
+      "Type": "MessageParticipant",
+      "Transitions": {
+        "NextAction": "c600f4c2-4646-48c3-822d-92ef2bb0bda8",
+        "Errors": [
+          {
+            "NextAction": "2a257a72-0c1d-4cb6-b81c-483c6403ba58",
+            "ErrorType": "NoMatchingError"
+          }
+        ]
+      }
+    },
+    {
+      "Parameters": {
+        "Text": "Sorry, you have selected an invalid option."
+      },
+      "Identifier": "25b478a8-16b7-4ed0-9fbb-5bc7f190033c",
+      "Type": "MessageParticipant",
+      "Transitions": {
+        "NextAction": "c600f4c2-4646-48c3-822d-92ef2bb0bda8",
+        "Errors": [
+          {
+            "NextAction": "1c664967-da98-4af8-bc40-33d93972b408",
+            "ErrorType": "NoMatchingError"
+          }
+        ]
+      }
+    },
+    {
+      "Parameters": {
+        "StoreInput": "False",
+        "InputTimeLimitSeconds": "5",
+        "Text": "Please Press 1 to generate vanity number or 2 to exit."
+      },
+      "Identifier": "c600f4c2-4646-48c3-822d-92ef2bb0bda8",
+      "Type": "GetParticipantInput",
+      "Transitions": {
+        "NextAction": "25b478a8-16b7-4ed0-9fbb-5bc7f190033c",
+        "Conditions": [
+          {
+            "NextAction": "Vanity Number",
+            "Condition": {
+              "Operator": "Equals",
+              "Operands": [
+                "1"
+              ]
+            }
+          },
+          {
+            "NextAction": "1c664967-da98-4af8-bc40-33d93972b408",
+            "Condition": {
+              "Operator": "Equals",
+              "Operands": [
+                "2"
+              ]
+            }
+          }
+        ],
+        "Errors": [
+          {
+            "NextAction": "2a257a72-0c1d-4cb6-b81c-483c6403ba58",
+            "ErrorType": "InputTimeLimitExceeded"
+          },
+          {
+            "NextAction": "25b478a8-16b7-4ed0-9fbb-5bc7f190033c",
+            "ErrorType": "NoMatchingCondition"
+          },
+          {
+            "NextAction": "2a257a72-0c1d-4cb6-b81c-483c6403ba58",
+            "ErrorType": "NoMatchingError"
+          }
+        ]
+      }
+    },
+    {
+      "Parameters": {},
+      "Identifier": "1c664967-da98-4af8-bc40-33d93972b408",
+      "Type": "DisconnectParticipant",
+      "Transitions": {}
+    },
+    {
+      "Parameters": {
+        "LambdaFunctionARN": "arn:aws:lambda:us-east-1:823704761183:function:SeniorDevProjStack-VanityLambdaAA33F3FA-k5vE0JWMrb0j",
+        "InvocationTimeLimitSeconds": "5",
+        "InvocationType": "SYNCHRONOUS",
+        "ResponseValidation": {
+          "ResponseType": "STRING_MAP"
+        }
+      },
+      "Identifier": "Vanity Number",
+      "Type": "InvokeLambdaFunction",
+      "Transitions": {
+        "NextAction": "Lambda Success",
+        "Errors": [
+          {
+            "NextAction": "2a257a72-0c1d-4cb6-b81c-483c6403ba58",
+            "ErrorType": "NoMatchingError"
+          }
+        ]
+      }
+    },
+    {
+      "Parameters": {
+        "Text": "Sorry, an error has occured. This call will now be disconnected, please call back later."
+      },
+      "Identifier": "2a257a72-0c1d-4cb6-b81c-483c6403ba58",
+      "Type": "MessageParticipant",
+      "Transitions": {
+        "NextAction": "1c664967-da98-4af8-bc40-33d93972b408",
+        "Errors": [
+          {
+            "NextAction": "1c664967-da98-4af8-bc40-33d93972b408",
+            "ErrorType": "NoMatchingError"
+          }
+        ]
+      }
+    },
+    {
+      "Parameters": {
+        "Text": "Lambda function call successfully. Thank you, good bye."
+      },
+      "Identifier": "Lambda Success",
+      "Type": "MessageParticipant",
+      "Transitions": {
+        "NextAction": "1c664967-da98-4af8-bc40-33d93972b408",
+        "Errors": [
+          {
+            "NextAction": "2a257a72-0c1d-4cb6-b81c-483c6403ba58",
+            "ErrorType": "NoMatchingError"
+          }
+        ]
+      }
+    }
+  ]
+}

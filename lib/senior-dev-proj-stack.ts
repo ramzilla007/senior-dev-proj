@@ -1,33 +1,38 @@
-import * as cdk from 'aws-cdk-lib';
-import { Construct } from 'constructs';
-import { Table, AttributeType } from 'aws-cdk-lib/aws-dynamodb';
-import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
-import { Runtime } from 'aws-cdk-lib/aws-lambda';
-import { CfnIntegrationAssociation } from 'aws-cdk-lib/aws-connect';
-import { join } from 'path';
+import * as path from "path";
+import * as cdk from "aws-cdk-lib";
+import { Construct } from "constructs";
+import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
+import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
+import { Runtime } from "aws-cdk-lib/aws-lambda";
+import { Duration } from "aws-cdk-lib";
 
 export class SeniorDevProjStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
-    // DynamoDB table
-    const table = new Table(this, 'VanityNumberTable', {
-      partitionKey: { name: 'id', type: AttributeType.STRING },
-      tableName: 'VanityNumberTable',
-      removalPolicy: cdk.RemovalPolicy.DESTROY
+    // DynamoDB table, use original phone number as the partition key
+    const table = new dynamodb.Table(this, "VanityTable", {
+      partitionKey: { name: "phone", type: dynamodb.AttributeType.STRING },
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
 
     // Lambda function
-    const lambdaFunction = new NodejsFunction(this, 'LambdaFunction', {
-      runtime: Runtime.NODEJS_20_X,
-      entry: join(__dirname, '../Services/handler.ts'),
-      handler: 'handler',
+    const fn = new NodejsFunction(this, "VanityFunction", {
+      entry: path.join(__dirname, "../lambda/vanity.ts"),
+      handler: "handler",
+      runtime: Runtime.NODEJS_18_X,
+      timeout: Duration.seconds(10),
       environment: {
-        TABLE_NAME: table.tableName
-      }
+        TABLE_NAME: table.tableName,
+        MAX_ITEMS: "5"
+      },
     });
 
-    // Give Lambda permission to write to table
-    table.grantWriteData(lambdaFunction);
+    // Grant the lambda read/write permissions on the table
+    table.grantReadWriteData(fn);
+
+    // Outputs
+    new cdk.CfnOutput(this, "VanityTableName", { value: table.tableName });
+    new cdk.CfnOutput(this, "VanityLambdaName", { value: fn.functionName });
   }
 }
