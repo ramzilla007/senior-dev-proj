@@ -1,24 +1,9 @@
-import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import {
-  DynamoDBDocumentClient,
-  PutCommand,
-  ScanCommand,
-  DeleteCommand,
-} from "@aws-sdk/lib-dynamodb";
+import { DynamoDBClient, PutItemCommand } from "@aws-sdk/client-dynamodb";
 
-const REGION = process.env.AWS_REGION || "us-east-1";
-const TABLE_NAME = process.env.TABLE_NAME!;
-const MAX_ITEMS = parseInt(process.env.MAX_ITEMS ?? "5", 10);
+const ddb = new DynamoDBClient({});
 
-if (!TABLE_NAME) {
-  throw new Error("Missing TABLE_NAME env var");
-}
-
-const dynamo = new DynamoDBClient({ region: REGION });
-const docClient = DynamoDBDocumentClient.from(dynamo);
-
-// Keypad mapping — pick first letter for each digit
-const KEYPAD: Record<string, string[]> = {
+// Basic letter mapping for phone keypad
+const DIGIT_MAP: Record<string, string[]> = {
   "2": ["A", "B", "C"],
   "3": ["D", "E", "F"],
   "4": ["G", "H", "I"],
@@ -29,103 +14,133 @@ const KEYPAD: Record<string, string[]> = {
   "9": ["W", "X", "Y", "Z"],
 };
 
-// Convert a phone string to digits-only then map digits -> letters (first letter)
-function generateVanity(phone: string): string {
-  const digitsOnly = phone.replace(/\D/g, "");
-  const chars: string[] = [];
+// Small dictionary for scoring real words
+const DICTIONARY = [
+  "CALL",
+  "NOW",
+  "FREE",
+  "HELP",
+  "HOME",
+  "FOOD",
+  "PIZZA",
+  "TAXI",
+  "CAR",
+  "DOG",
+  "CAT",
+  "TECH",
+  "CODE",
+  "DESK",
+  "BEST",
+  "FAST",
+  "SAVE",
+  "YOU",
+  "ME",
+  "GO",
+  "SHOP",
+  "BUY",
+  "FUN",
+  "PLAY",
+  "WORK",
+  "LOVE",
+  "HAPPY",
+  "DAY",
+  "NIGHT",
+  "SUN",
+  "MOON",
+  "STAR",
+];
 
-  for (const ch of digitsOnly) {
-    const letters = KEYPAD[ch];
-    if (letters && letters.length > 0) {
-      chars.push(letters[0]);
-    } else {
-      // keep digits (0,1)
-      chars.push(ch);
+// Generate a single vanity candidate for one digit string
+function randomVanityFromDigits(num: string): string {
+  return num
+    .split("")
+    .map((d) =>
+      DIGIT_MAP[d]
+        ? DIGIT_MAP[d][Math.floor(Math.random() * DIGIT_MAP[d].length)]
+        : d
+    )
+    .join("");
+}
+
+// Score candidate based on multiple readability/memorability factors
+function scoreVanity(vanity: string): number {
+  let score = 0;
+
+  // 1) Word-based scoring (dictionary)
+  for (const word of DICTIONARY) {
+    if (vanity.includes(word)) score += word.length * 20; // strong weight
+  }
+
+  // 2) Penalize repeating letters
+  let repeatPenalty = 0;
+  for (let i = 0; i < vanity.length - 2; i++) {
+    if (vanity[i] === vanity[i + 1] && vanity[i] === vanity[i + 2]) {
+      repeatPenalty -= 25;
     }
   }
+  score += repeatPenalty;
 
-  return chars.join("");
+  // 3) Memorability: count vowel presence (A,E,I,O,U)
+  const vowels = vanity.split("").filter((ch) => "AEIOU".includes(ch)).length;
+  score += vowels * 3;
+
+  // 4) Readability: avoid awkward rare letters (Q, X, Z)
+  const awkward = vanity
+    .split("")
+    .filter((ch) => ["Q", "X", "Z"].includes(ch)).length;
+  score -= awkward * 5;
+
+  return score;
 }
 
-function extractPhoneFromConnectEvent(event: any): string | undefined {
-  // Amazon Connect data structure for phone: Details.ContactData.CustomerEndpoint.Address
-  if (event?.Details?.ContactData?.CustomerEndpoint?.Address) {
-    return event.Details.ContactData.CustomerEndpoint.Address;
-  }
-  // For testing:
-  if (event?.phone) return event.phone;
-  if (event?.phoneNumber) return event.phoneNumber;
-  return undefined;
-}
+exports.handler = async (event: any) => {
+  const original =
+    event.Details?.ContactData?.CustomerEndpoint?.Address || event.phone || "";
 
-export const handler = async (event: any) => {
-  console.log("Received event:", JSON.stringify(event, null, 2));
+  const digits = original.replace(/\D/g, "");
 
-  const phone = extractPhoneFromConnectEvent(event);
-  if (!phone) {
+  if (!digits) {
     return {
-      statusCode: 400,
-      body: {
-        error: "No phone number provided in Connect event or 'phone' field.",
-      },
+      lambdaResult: "ERROR_NO_NUMBER",
     };
   }
 
-  const vanity = generateVanity(phone);
-  const now = Date.now();
-
-  // Scan the table (small table; max 5 items) to determine number of distinct phones
-  const scanResult = await docClient.send(
-    new ScanCommand({
-      TableName: TABLE_NAME,
-      ProjectionExpression: "phone, createdAt",
-    })
-  );
-
-  const items = scanResult.Items ?? [];
-
-  // Check if incoming phone exists
-  const exists = items.some((it: any) => it.phone === phone);
-
-  // If not exists AND we already have MAX_ITEMS entries -> delete oldest
-  if (!exists && items.length >= MAX_ITEMS) {
-    // Find the item with the smallest createdAt
-    let oldest = items[0];
-    for (const it of items) {
-      if ((it.createdAt ?? 0) < (oldest.createdAt ?? 0)) {
-        oldest = it;
-      }
-    }
-
-    if (oldest && oldest.phone) {
-      console.log("Deleting oldest item to make room:", oldest);
-      await docClient.send(
-        new DeleteCommand({
-          TableName: TABLE_NAME,
-          Key: { phone: oldest.phone },
-        })
-      );
-    }
+  // Generate EXACT-LENGTH vanity numbers
+  const candidates: string[] = [];
+  for (let i = 0; i < 200; i++) {
+    const v = randomVanityFromDigits(digits);
+    if (v.length === digits.length) candidates.push(v);
   }
 
-  // 2) Put the new item
-  const putItem = {
-    phone,
-    vanity,
-    createdAt: now,
-  };
+  // Score and sort
+  const ranked = candidates
+    .map((v) => ({ vanity: v, score: scoreVanity(v) }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 5);
 
-  await docClient.send(
-    new PutCommand({
-      TableName: TABLE_NAME,
-      Item: putItem,
+  // Top 3 for Connect to speak back
+  const speak1 = ranked[0]?.vanity ?? "";
+  const speak2 = ranked[1]?.vanity ?? "";
+  const speak3 = ranked[2]?.vanity ?? "";
+
+  // Store in DynamoDB
+  await ddb.send(
+    new PutItemCommand({
+      TableName: process.env.TABLE_NAME,
+      Item: {
+        phone: { S: digits },
+        vanityNumbers: { SS: ranked.map((r) => r.vanity) },
+        timestamp: { N: `${Date.now()}` },
+      },
     })
   );
 
-  console.log("Put item:", putItem);
-
+  // CONNECT-FRIENDLY RETURN
   return {
-    statusCode: 200,
-    body: { phone, vanity },
+    lambdaResult: "OK",
+    originalNumber: digits,
+    top1: speak1,
+    top2: speak2,
+    top3: speak3,
   };
 };
