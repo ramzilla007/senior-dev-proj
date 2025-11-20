@@ -9,7 +9,7 @@ export class SeniorDevProjStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
-    // DynamoDB table keyed by phone number
+    // DynamoDB table - phone (PK)
     const table = new dynamodb.Table(this, "VanityTable", {
       partitionKey: { name: "phone", type: dynamodb.AttributeType.STRING },
       removalPolicy: cdk.RemovalPolicy.DESTROY,
@@ -27,7 +27,7 @@ export class SeniorDevProjStack extends cdk.Stack {
 
     table.grantReadWriteData(vanityLambda);
 
-    // Outputs
+    // Outputs - feedback for deployment
     new cdk.CfnOutput(this, "VanityTableName", { value: table.tableName });
     new cdk.CfnOutput(this, "VanityLambdaName", {
       value: vanityLambda.functionName,

@@ -1,14 +1,11 @@
-# Welcome to your CDK TypeScript project
+# TTECH Digital Senior Developer Project (CDK TypeScript project)
 
-This is a blank project for CDK development with TypeScript.
+To deploy this project into you AWS account, do the following:
 
-The `cdk.json` file tells the CDK Toolkit how to execute your app.
+* cdk bootstrap <your account Id>/<Region> // Only once per account.
+* npm install  //To install all needed packages
+* cdk deploy
 
-## Useful commands
+## Notes
 
-* `npm run build`   compile typescript to js
-* `npm run watch`   watch for changes and compile
-* `npm run test`    perform the jest unit tests
-* `npx cdk deploy`  deploy this stack to your default AWS account/region
-* `npx cdk diff`    compare deployed stack with current state
-* `npx cdk synth`   emits the synthesized CloudFormation template
+* esbuild package is used to avoid installing Docker for building the stack.

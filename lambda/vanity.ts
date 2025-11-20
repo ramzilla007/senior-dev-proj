@@ -2,7 +2,7 @@ import { DynamoDBClient, PutItemCommand } from "@aws-sdk/client-dynamodb";
 
 const ddb = new DynamoDBClient({});
 
-// Basic letter mapping for phone keypad
+// Letter mapping for phone keypad
 const DIGIT_MAP: Record<string, string[]> = {
   "2": ["A", "B", "C"],
   "3": ["D", "E", "F"],
@@ -14,7 +14,7 @@ const DIGIT_MAP: Record<string, string[]> = {
   "9": ["W", "X", "Y", "Z"],
 };
 
-// Small dictionary for scoring real words
+// Dictionary for scoring real words
 const DICTIONARY = [
   "CALL",
   "NOW",
@@ -50,7 +50,7 @@ const DICTIONARY = [
   "STAR",
 ];
 
-// Generate a single vanity candidate for one digit string
+// Generate a single vanity number for one digit string
 function randomVanityFromDigits(num: string): string {
   return num
     .split("")
@@ -62,16 +62,16 @@ function randomVanityFromDigits(num: string): string {
     .join("");
 }
 
-// Score candidate based on multiple readability/memorability factors
+// Score vanity based on readability/memorability
 function scoreVanity(vanity: string): number {
   let score = 0;
 
-  // 1) Word-based scoring (dictionary)
+  // Word-based scoring (dictionary)
   for (const word of DICTIONARY) {
     if (vanity.includes(word)) score += word.length * 20; // strong weight
   }
 
-  // 2) Penalize repeating letters
+  // Penalize repeating letters
   let repeatPenalty = 0;
   for (let i = 0; i < vanity.length - 2; i++) {
     if (vanity[i] === vanity[i + 1] && vanity[i] === vanity[i + 2]) {
@@ -80,11 +80,11 @@ function scoreVanity(vanity: string): number {
   }
   score += repeatPenalty;
 
-  // 3) Memorability: count vowel presence (A,E,I,O,U)
+  // Memorability: count vowel presence (A,E,I,O,U)
   const vowels = vanity.split("").filter((ch) => "AEIOU".includes(ch)).length;
   score += vowels * 3;
 
-  // 4) Readability: avoid awkward rare letters (Q, X, Z)
+  // Readability: avoid awkward rare letters (Q, X, Z)
   const awkward = vanity
     .split("")
     .filter((ch) => ["Q", "X", "Z"].includes(ch)).length;
@@ -105,7 +105,7 @@ exports.handler = async (event: any) => {
     };
   }
 
-  // Generate EXACT-LENGTH vanity numbers
+  // Generate vanity numbers
   const candidates: string[] = [];
   for (let i = 0; i < 200; i++) {
     const v = randomVanityFromDigits(digits);
@@ -119,9 +119,9 @@ exports.handler = async (event: any) => {
     .slice(0, 5);
 
   // Top 3 for Connect to speak back
-  const speak1 = ranked[0]?.vanity ?? "";
-  const speak2 = ranked[1]?.vanity ?? "";
-  const speak3 = ranked[2]?.vanity ?? "";
+  const vanity1 = ranked[0]?.vanity ?? "";
+  const vanity2 = ranked[1]?.vanity ?? "";
+  const vanity3 = ranked[2]?.vanity ?? "";
 
   // Store in DynamoDB
   await ddb.send(
@@ -139,8 +139,8 @@ exports.handler = async (event: any) => {
   return {
     lambdaResult: "OK",
     originalNumber: digits,
-    top1: speak1,
-    top2: speak2,
-    top3: speak3,
+    top1: vanity1,
+    top2: vanity2,
+    top3: vanity3,
   };
 };
