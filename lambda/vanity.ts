@@ -50,7 +50,7 @@ const DICTIONARY = [
   "STAR",
 ];
 
-// Generate a single vanity number for one digit string
+// Generate a single vanity number for one digit string (if not a number, keep as is)
 function randomVanityFromDigits(num: string): string {
   return num
     .split("")
@@ -108,8 +108,8 @@ exports.handler = async (event: any) => {
   // Generate 200 random vanity numbers
   const vanityNumbersList: string[] = [];
   for (let i = 0; i < 200; i++) {
-    const v = randomVanityFromDigits(digits);
-    if (v.length === digits.length) vanityNumbersList.push(v);
+    const rawVanity = randomVanityFromDigits(digits);
+    if (rawVanity.length === digits.length) vanityNumbersList.push(rawVanity);
   }
 
   // Sort and get top 5 (based on scoring)

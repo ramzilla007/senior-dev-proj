@@ -13,7 +13,7 @@ Deploy Connect Contact flow:
 * Under the "Save" button dropdown, select "Import" and import this file: Connect/vanity-number-flow.json
 
 To connect Lambda function to contact flow:
-* Under your Connect instance in the AWS console, click on the "Flows" menu (right panel)
+* Under your Connect instance in the AWS console, click on the "Flows" menu (left panel)
 * Scroll down until you see "Lamnbda Functons"; find the lambda function imported by the CDK and add it
 * Go into the contact flow created above, find the "Aws Lambda function" block.
 * Click on that to edit and under the "Function ARN", click "Set manually" and select the lambda function added above.
